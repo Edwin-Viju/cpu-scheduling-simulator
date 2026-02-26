@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPU Scheduler Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e3a5f;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --accent3: #7c3aed;
+    --green: #00ff88;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --error: #ff4444;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    background-image: 
+      radial-gradient(ellipse at 20% 50%, rgba(0,212,255,0.03) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(124,58,237,0.05) 0%, transparent 50%);
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(17,24,39,0.8);
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    width: 36px; height: 36px;
+    border: 2px solid var(--accent);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    color: var(--accent);
+    box-shadow: 0 0 12px rgba(0,212,255,0.3);
+  }
+
+  h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+
+  .subtitle { color: var(--text-muted); font-size: 11px; letter-spacing: 1px; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+  .grid { display: grid; grid-template-columns: 380px 1fr; gap: 24px; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .dot.orange { background: var(--accent2); }
+  .dot.purple { background: var(--accent3); }
+
+  .panel-body { padding: 20px; }
+
+  label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+
+  input, select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    padding: 9px 12px;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    margin-bottom: 14px;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0,212,255,0.1);
+  }
+
+  input.error { border-color: var(--error); }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+  .btn {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .btn-primary:hover { box-shadow: 0 0 20px rgba(0,212,255,0.4); transform: translateY(-1px); }
+
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+
+  .btn-secondary:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  .btn-add {
+    background: transparent;
+    border: 1px solid var(--accent3);
+    color: var(--accent3);
+    padding: 8px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+  }
+
+  .btn-add:hover { background: rgba(124,58,237,0.1); }
+
+  .btn-sample {
+    background: transparent;
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 8px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+
+  .btn-sample:hover { background: rgba(0,255,136,0.08); }
+
+  .sample-note {
+    font-size: 9px;
+    color: var(--text-muted);
+    text-align: center;
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+  }
+
+  .process-list {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+
+  .process-list::-webkit-scrollbar { width: 4px; }
+  .process-list::-webkit-scrollbar-track { background: var(--bg); }
+  .process-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .process-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .process-table th {
+    background: var(--surface2);
+    padding: 8px 10px;
+    text-align: center;
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .process-table td {
+    padding: 8px 10px;
+    text-align: center;
+    border-bottom: 1px solid rgba(30,58,95,0.4);
+    color: var(--text);
+  }
+
+  .process-table tr:last-child td { border-bottom: none; }
+  .process-table tr:hover td { background: rgba(0,212,255,0.03); }
+
+  .remove-btn {
+    background: none;
+    border: none;
+    color: var(--error);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 4px;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+  }
+  .remove-btn:hover { opacity: 1; }
+
+  .empty-state {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+
+  .algo-select { margin-bottom: 16px; }
+
+  select option { background: var(--surface); }
+
+  .error-msg {
+    color: var(--error);
+    font-size: 10px;
+    margin-top: -10px;
+    margin-bottom: 10px;
+    display: none;
+  }
+
+  /* Results */
+  .results-area { display: flex; flex-direction: column; gap: 20px; }
+
+  .gantt-container { padding: 20px; }
+
+  .gantt-title {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+
+  .gantt-chart { position: relative; }
+
+  .gantt-bars {
+    display: flex;
+    height: 48px;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+
+  .gantt-bar {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 1px;
+    border-right: 1px solid rgba(0,0,0,0.3);
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .gantt-bar.idle {
+    background: repeating-linear-gradient(45deg, #1a2235, #1a2235 4px, #141d2e 4px, #141d2e 8px);
+    color: var(--text-muted);
+  }
+
+  .gantt-bar::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+
+  .gantt-labels {
+    display: flex;
+    font-size: 9px;
+    color: var(--text-muted);
+    position: relative;
+  }
+
+  .gantt-label {
+    position: absolute;
+    transform: translateX(-50%);
+  }
+
+  .stats-table-wrap { padding: 0 20px 20px; }
+
+  .stats-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+  .stats-table th {
+    background: var(--surface2);
+    padding: 10px 14px;
+    text-align: center;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stats-table td {
+    padding: 10px 14px;
+    text-align: center;
+    border-bottom: 1px solid rgba(30,58,95,0.4);
+  }
+
+  .stats-table tr:last-child td { border-bottom: none; }
+
+  .stats-table td:first-child { color: var(--accent); font-weight: bold; }
+
+  .highlight { color: var(--green); }
+  .highlight2 { color: var(--accent2); }
+
+  .averages {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 0 20px 20px;
+  }
+
+  .avg-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .avg-label { font-size: 9px; letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; }
+
+  .avg-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+  }
+
+  .avg-value.wt { color: var(--accent); }
+  .avg-value.tat { color: var(--accent2); }
+
+  .avg-unit { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+  .comment-box {
+    margin: 0 20px 20px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent3);
+    border-radius: 0 4px 4px 0;
+    padding: 16px;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text-muted);
+  }
+
+  .comment-box strong { color: var(--accent3); }
+
+  .placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 300px;
+    color: var(--text-muted);
+    text-align: center;
+    gap: 12px;
+  }
+
+  .placeholder-icon {
+    font-size: 40px;
+    opacity: 0.3;
+  }
+
+  .placeholder-text { font-size: 11px; letter-spacing: 1px; }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 9px;
+    letter-spacing: 1px;
+  }
+
+  .tag.priority { background: rgba(255,107,53,0.15); color: var(--accent2); border: 1px solid rgba(255,107,53,0.3); }
+  .tag.fcfs { background: rgba(0,212,255,0.1); color: var(--accent); border: 1px solid rgba(0,212,255,0.2); }
+  .tag.sjf { background: rgba(0,255,136,0.1); color: var(--green); border: 1px solid rgba(0,255,136,0.2); }
+
+  @media (max-width: 768px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .algo-info {
+    background: rgba(124,58,237,0.08);
+    border: 1px solid rgba(124,58,237,0.2);
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    line-height: 1.6;
+  }
+
+  .algo-info span { color: var(--accent3); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">CPU</div>
+  <div>
+    <h1>SCHEDULER SIM</h1>
+    <div class="subtitle">CPU SCHEDULING ALGORITHM VISUALIZER</div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="grid">
+
+    <!-- LEFT PANEL: Input -->
+    <div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="dot"></div>
+          PROCESS INPUT
+        </div>
+        <div class="panel-body">
+
+          <label>SCHEDULING ALGORITHM</label>
+          <select id="algo" class="algo-select" onchange="updateAlgoInfo()">
+            <option value="fcfs">FCFS — First Come First Serve</option>
+            <option value="sjf">SJF — Shortest Job First</option>
+            <option value="priority" selected>Priority Scheduling (Non-Preemptive)</option>
+          </select>
+
+          <div class="algo-info" id="algoInfo">
+            <span>Priority Scheduling:</span> Processes are executed based on priority. Lower number = higher priority. Non-preemptive — once a process starts, it runs to completion.
+          </div>
+
+          <div class="row3">
+            <div>
+              <label>PROCESS ID</label>
+              <input type="text" id="inp-pid" placeholder="P1" maxlength="5">
+            </div>
+            <div>
+              <label>ARRIVAL</label>
+              <input type="number" id="inp-at" placeholder="0" min="0">
+            </div>
+            <div>
+              <label>BURST</label>
+              <input type="number" id="inp-bt" placeholder="5" min="1">
+            </div>
+          </div>
+
+          <div id="priority-field">
+            <label>PRIORITY (lower = higher priority)</label>
+            <input type="number" id="inp-pr" placeholder="1" min="1">
+          </div>
+
+          <div id="error-msg" class="error-msg">⚠ Please fill all fields with valid values.</div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+            <button class="btn btn-add" style="margin-bottom:0" onclick="addProcess()">+ ADD PROCESS</button>
+            <button class="btn btn-sample" onclick="loadSample()">⚡ LOAD SAMPLE</button>
+          </div>
+          <div id="sample-note" class="sample-note" style="display:none"></div>
+
+          <div class="process-list">
+            <table class="process-table">
+              <thead>
+                <tr>
+                  <th>PID</th>
+                  <th>AT</th>
+                  <th>BT</th>
+                  <th id="pr-header">PR</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="process-tbody">
+                <tr><td colspan="5"><div class="empty-state">NO PROCESSES ADDED</div></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <button class="btn btn-primary" onclick="simulate()">▶ SIMULATE</button>
+          <button class="btn btn-secondary" onclick="clearAll()">CLEAR ALL</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: Results -->
+    <div>
+      <div class="panel" style="height:100%">
+        <div class="panel-header">
+          <div class="dot orange"></div>
+          SIMULATION RESULTS
+        </div>
+        <div id="results">
+          <div class="placeholder">
+            <div class="placeholder-icon">⚙</div>
+            <div class="placeholder-text">ADD PROCESSES AND CLICK SIMULATE</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let processes = [];
+let pidCounter = 1;
+
+const COLORS = [
+  '#00d4ff','#ff6b35','#7c3aed','#00ff88','#f59e0b',
+  '#ec4899','#06b6d4','#84cc16','#f97316','#8b5cf6'
+];
+
+function updateAlgoInfo() {
+  const algo = document.getElementById('algo').value;
+  const info = document.getElementById('algoInfo');
+  const prField = document.getElementById('priority-field');
+  const prHeader = document.getElementById('pr-header');
+
+  if (algo === 'fcfs') {
+    info.innerHTML = '<span>FCFS:</span> Processes are executed in the order they arrive. Simple and fair — no starvation, but short jobs may wait behind long ones.';
+    prField.style.display = 'none';
+    prHeader.style.display = 'none';
+  } else if (algo === 'sjf') {
+    info.innerHTML = '<span>SJF:</span> The process with the shortest burst time is selected next. Minimizes average waiting time but may cause starvation of long processes.';
+    prField.style.display = 'none';
+    prHeader.style.display = 'none';
+  } else {
+    info.innerHTML = '<span>Priority Scheduling:</span> Processes are executed based on priority. Lower number = higher priority. Non-preemptive — once a process starts, it runs to completion.';
+    prField.style.display = 'block';
+    prHeader.style.display = '';
+  }
+}
+
+function addProcess() {
+  const pid = document.getElementById('inp-pid').value.trim() || `P${pidCounter}`;
+  const at = parseInt(document.getElementById('inp-at').value);
+  const bt = parseInt(document.getElementById('inp-bt').value);
+  const algo = document.getElementById('algo').value;
+  const pr = algo === 'priority' ? parseInt(document.getElementById('inp-pr').value) : 0;
+
+  const errEl = document.getElementById('error-msg');
+
+  if (isNaN(at) || at < 0 || isNaN(bt) || bt < 1 || (algo === 'priority' && isNaN(pr))) {
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+
+  // Check duplicate PID
+  if (processes.find(p => p.pid === pid)) {
+    errEl.textContent = `⚠ Process ID "${pid}" already exists.`;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  processes.push({ pid, at, bt, pr, color: COLORS[processes.length % COLORS.length] });
+  pidCounter++;
+
+  document.getElementById('inp-pid').value = `P${pidCounter}`;
+  document.getElementById('inp-at').value = '';
+  document.getElementById('inp-bt').value = '';
+  document.getElementById('inp-pr').value = '';
+
+  renderTable();
+}
+
+function removeProcess(idx) {
+  processes.splice(idx, 1);
+  renderTable();
+}
+
+function clearAll() {
+  processes = [];
+  pidCounter = 1;
+  document.getElementById('inp-pid').value = 'P1';
+  renderTable();
+  document.getElementById('results').innerHTML = `
+    <div class="placeholder">
+      <div class="placeholder-icon">⚙</div>
+      <div class="placeholder-text">ADD PROCESSES AND CLICK SIMULATE</div>
+    </div>`;
+}
+
+function renderTable() {
+  const algo = document.getElementById('algo').value;
+  const tbody = document.getElementById('process-tbody');
+  if (processes.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">NO PROCESSES ADDED</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = processes.map((p, i) => `
+    <tr>
+      <td style="color:${p.color}">${p.pid}</td>
+      <td>${p.at}</td>
+      <td>${p.bt}</td>
+      <td>${algo === 'priority' ? p.pr : '-'}</td>
+      <td><button class="remove-btn" onclick="removeProcess(${i})">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+function simulate() {
+  if (processes.length === 0) {
+    alert('Add at least one process.');
+    return;
+  }
+
+  const algo = document.getElementById('algo').value;
+  let schedule;
+
+  if (algo === 'fcfs') schedule = fcfs([...processes]);
+  else if (algo === 'sjf') schedule = sjf([...processes]);
+  else schedule = priorityScheduling([...processes]);
+
+  renderResults(schedule, algo);
+}
+
+function fcfs(procs) {
+  procs.sort((a, b) => a.at - b.at || a.pid.localeCompare(b.pid));
+  return runNonPreemptive(procs);
+}
+
+function sjf(procs) {
+  // Non-preemptive SJF
+  let time = 0;
+  let done = [];
+  let remaining = [...procs];
+  let gantt = [];
+
+  while (remaining.length > 0) {
+    let available = remaining.filter(p => p.at <= time);
+    if (available.length === 0) {
+      let nextAT = Math.min(...remaining.map(p => p.at));
+      gantt.push({ pid: 'IDLE', start: time, end: nextAT, color: null });
+      time = nextAT;
+      continue;
+    }
+    available.sort((a, b) => a.bt - b.bt || a.at - b.at);
+    let proc = available[0];
+    remaining = remaining.filter(p => p.pid !== proc.pid);
+    let start = time;
+    time += proc.bt;
+    gantt.push({ pid: proc.pid, start, end: time, color: proc.color });
+    done.push({ ...proc, start, finish: time, wt: start - proc.at, tat: time - proc.at });
+  }
+  return { gantt, done };
+}
+
+function priorityScheduling(procs) {
+  let time = 0;
+  let done = [];
+  let remaining = [...procs];
+  let gantt = [];
+
+  while (remaining.length > 0) {
+    let available = remaining.filter(p => p.at <= time);
+    if (available.length === 0) {
+      let nextAT = Math.min(...remaining.map(p => p.at));
+      gantt.push({ pid: 'IDLE', start: time, end: nextAT, color: null });
+      time = nextAT;
+      continue;
+    }
+    // Lower number = higher priority
+    available.sort((a, b) => a.pr - b.pr || a.at - b.at);
+    let proc = available[0];
+    remaining = remaining.filter(p => p.pid !== proc.pid);
+    let start = time;
+    time += proc.bt;
+    gantt.push({ pid: proc.pid, start, end: time, color: proc.color });
+    done.push({ ...proc, start, finish: time, wt: start - proc.at, tat: time - proc.at });
+  }
+  return { gantt, done };
+}
+
+function runNonPreemptive(procs) {
+  let time = 0;
+  let done = [];
+  let gantt = [];
+  let remaining = [...procs];
+
+  while (remaining.length > 0) {
+    let available = remaining.filter(p => p.at <= time);
+    if (available.length === 0) {
+      let nextAT = Math.min(...remaining.map(p => p.at));
+      gantt.push({ pid: 'IDLE', start: time, end: nextAT, color: null });
+      time = nextAT;
+      continue;
+    }
+    let proc = available[0];
+    remaining = remaining.filter(p => p.pid !== proc.pid);
+    let start = time;
+    time += proc.bt;
+    gantt.push({ pid: proc.pid, start, end: time, color: proc.color });
+    done.push({ ...proc, start, finish: time, wt: start - proc.at, tat: time - proc.at });
+  }
+  return { gantt, done };
+}
+
+function renderResults({ gantt, done }, algo) {
+  const totalTime = gantt[gantt.length - 1].end;
+  const avgWT = (done.reduce((s, p) => s + p.wt, 0) / done.length).toFixed(2);
+  const avgTAT = (done.reduce((s, p) => s + p.tat, 0) / done.length).toFixed(2);
+
+  const algoLabels = { fcfs: 'FCFS', sjf: 'SJF', priority: 'PRIORITY' };
+  const tagClass = { fcfs: 'fcfs', sjf: 'sjf', priority: 'priority' };
+
+  // Build Gantt bars
+  const ganttBars = gantt.map(g => {
+    const pct = ((g.end - g.start) / totalTime * 100).toFixed(2);
+    if (g.pid === 'IDLE') {
+      return `<div class="gantt-bar idle" style="width:${pct}%" title="IDLE [${g.start}–${g.end}]">IDLE</div>`;
+    }
+    return `<div class="gantt-bar" style="width:${pct}%;background:${g.color}20;color:${g.color};border-top:2px solid ${g.color}" title="${g.pid} [${g.start}–${g.end}]">${g.pid}</div>`;
+  }).join('');
+
+  // Time labels
+  const uniqueTimes = [...new Set(gantt.flatMap(g => [g.start, g.end]))].sort((a,b)=>a-b);
+  const timeLabels = uniqueTimes.map(t => {
+    const pct = (t / totalTime * 100).toFixed(2);
+    return `<span class="gantt-label" style="left:${pct}%">${t}</span>`;
+  }).join('');
+
+  // Table rows
+  const tableRows = done.map(p => `
+    <tr>
+      <td style="color:${p.color}"><span class="tag ${tagClass[algo]}">${p.pid}</span></td>
+      <td>${p.at}</td>
+      <td>${p.bt}</td>
+      ${algo === 'priority' ? `<td>${p.pr}</td>` : ''}
+      <td>${p.start}</td>
+      <td>${p.finish}</td>
+      <td class="highlight">${p.wt}</td>
+      <td class="highlight2">${p.tat}</td>
+    </tr>
+  `).join('');
+
+  const prHeader = algo === 'priority' ? '<th>PRIORITY</th>' : '';
+
+  // Comment based on algo
+  let comment = '';
+  if (algo === 'priority') {
+    const sorted = [...done].sort((a, b) => a.pr - b.pr);
+    const highPri = sorted[0];
+    const lowPri = sorted[sorted.length - 1];
+    comment = `
+      <div class="comment-box">
+        <strong>// ANALYSIS: Priority Scheduling</strong><br><br>
+        Process <strong style="color:${highPri.color}">${highPri.pid}</strong> (Priority=${highPri.pr}) received CPU first among available processes — 
+        lower priority numbers are treated as higher urgency. Processes with higher priority values may experience 
+        <strong style="color:var(--accent2)">starvation</strong> if high-priority processes keep arriving. 
+        In this run, <strong style="color:${lowPri.color}">${lowPri.pid}</strong> (Priority=${lowPri.pr}) had 
+        the lowest priority and waited the longest (WT = ${lowPri.wt} units). 
+        Average Waiting Time = <strong style="color:var(--accent)">${avgWT}</strong> units. 
+        Priority-based scheduling is ideal for <strong>real-time systems</strong> where critical tasks must preempt less urgent ones.
+      </div>`;
+  } else if (algo === 'fcfs') {
+    comment = `<div class="comment-box"><strong>// ANALYSIS: FCFS</strong><br><br>Processes were executed in arrival order. FCFS is simple but can cause the <strong style="color:var(--accent2)">convoy effect</strong> — short processes waiting behind long ones inflate average waiting time.</div>`;
+  } else {
+    comment = `<div class="comment-box"><strong>// ANALYSIS: SJF</strong><br><br>Shortest burst-time processes were prioritized. SJF minimizes average waiting time but may cause <strong style="color:var(--accent2)">starvation</strong> for long processes if short ones keep arriving.</div>`;
+  }
+
+  document.getElementById('results').innerHTML = `
+    <div class="results-area">
+      <div class="gantt-container">
+        <div class="gantt-title">▸ GANTT CHART — <span class="tag ${tagClass[algo]}">${algoLabels[algo]}</span></div>
+        <div class="gantt-chart">
+          <div class="gantt-bars">${ganttBars}</div>
+          <div class="gantt-labels" style="height:18px">${timeLabels}</div>
+        </div>
+      </div>
+
+      <div class="stats-table-wrap">
+        <table class="stats-table">
+          <thead>
+            <tr>
+              <th>PID</th>
+              <th>AT</th>
+              <th>BT</th>
+              ${prHeader}
+              <th>START</th>
+              <th>FINISH</th>
+              <th>WT</th>
+              <th>TAT</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+
+      <div class="averages">
+        <div class="avg-card">
+          <div class="avg-label">AVG WAITING TIME</div>
+          <div class="avg-value wt">${avgWT}</div>
+          <div class="avg-unit">TIME UNITS</div>
+        </div>
+        <div class="avg-card">
+          <div class="avg-label">AVG TURNAROUND TIME</div>
+          <div class="avg-value tat">${avgTAT}</div>
+          <div class="avg-unit">TIME UNITS</div>
+        </div>
+      </div>
+
+      ${comment}
+    </div>
+  `;
+}
+
+// Pre-populate example
+updateAlgoInfo();
+
+const SAMPLES = {
+  fcfs: {
+    label: 'FCFS Sample — 4 processes with staggered arrivals',
+    procs: [
+      { pid:'P1', at:0, bt:5, pr:0 },
+      { pid:'P2', at:1, bt:3, pr:0 },
+      { pid:'P3', at:2, bt:8, pr:0 },
+      { pid:'P4', at:3, bt:2, pr:0 },
+    ]
+  },
+  sjf: {
+    label: 'SJF Sample — mixed burst times showing shortest-first selection',
+    procs: [
+      { pid:'P1', at:0, bt:6, pr:0 },
+      { pid:'P2', at:1, bt:2, pr:0 },
+      { pid:'P3', at:2, bt:8, pr:0 },
+      { pid:'P4', at:3, bt:3, pr:0 },
+      { pid:'P5', at:4, bt:1, pr:0 },
+    ]
+  },
+  priority: {
+    label: 'Priority Sample — illustrates starvation risk for low-priority process',
+    procs: [
+      { pid:'P1', at:0, bt:4, pr:3 },
+      { pid:'P2', at:1, bt:5, pr:1 },
+      { pid:'P3', at:2, bt:2, pr:4 },
+      { pid:'P4', at:3, bt:3, pr:2 },
+      { pid:'P5', at:4, bt:6, pr:5 },
+    ]
+  }
+};
+
+function loadSample() {
+  const algo = document.getElementById('algo').value;
+  const sample = SAMPLES[algo];
+  processes = sample.procs.map((p, i) => ({ ...p, color: COLORS[i % COLORS.length] }));
+  pidCounter = processes.length + 1;
+  document.getElementById('inp-pid').value = `P${pidCounter}`;
+
+  const note = document.getElementById('sample-note');
+  note.textContent = '// ' + sample.label;
+  note.style.display = 'block';
+
+  renderTable();
+}
+</script>
+</body>
+</html>
